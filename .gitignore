@@ -1,0 +1,27 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# IDE files
+.vscode/
+.idea/
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# Large Pickle Binary Files (often contain model weights or large structures)
+*.pkl
+
+# Large Datasets (Over 5MB)
+**/Books.csv
+**/Ratings.csv
+**/Users.csv
+**/hotel_bookings.csv
+**/spam_ham_dataset.csv
+**/test_Data.csv

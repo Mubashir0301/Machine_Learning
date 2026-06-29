@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuraWord LSTM: Next Word Predictor</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind-free Custom Style -->
+    <link rel="stylesheet" href="style.css">
+    <!-- TensorFlow.js and Chart.js CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo-area">
+                <i class="fa-solid fa-brain logo-icon"></i>
+                <div class="logo-text">
+                    <h1>NeuraWord <span>LSTM</span></h1>
+                    <p>Interactive Next-Word Predictor & Deep Learning Lab</p>
+                </div>
+            </div>
+            <div class="header-badge">
+                <i class="fa-solid fa-bolt text-warning"></i>
+                <span id="gpu-status">Checking Hardware...</span>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <div class="main-grid">
+            
+            <!-- Left Panel: Data & Configuration -->
+            <div class="card panel-setup">
+                <div class="card-header">
+                    <i class="fa-solid fa-sliders header-icon"></i>
+                    <h2>Model Setup & Data</h2>
+                </div>
+                
+                <!-- Dataset Input -->
+                <div class="form-group">
+                    <label for="text-input">
+                        <span>1. Training Corpus (Text Dataset)</span>
+                        <span class="label-help">Paste text or upload a file</span>
+                    </label>
+                    <textarea id="text-input" placeholder="Type or paste your training paragraph here..."></textarea>
+                    <div class="upload-bar">
+                        <label for="file-upload" class="btn btn-secondary btn-sm">
+                            <i class="fa-solid fa-file-arrow-up"></i> Upload .txt File
+                        </label>
+                        <input type="file" id="file-upload" accept=".txt">
+                        <button id="load-sample-btn" class="btn btn-text btn-sm">
+                            <i class="fa-solid fa-rotate-left"></i> Load Sample Text
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hyperparameters Accordion/Grid -->
+                <div class="hyperparameters-section">
+                    <h3>2. Hyperparameters</h3>
+                    <div class="hyperparameters-grid">
+                        <!-- Sequence Length -->
+                        <div class="param-control">
+                            <div class="param-label-row">
+                                <label for="param-seq-len">Sequence Length (N-grams)</label>
+                                <span id="val-seq-len" class="param-value">3</span>
+                            </div>
+                            <input type="range" id="param-seq-len" min="2" max="10" value="3" step="1">
+                            <span class="param-desc">Words model reads to predict the next word</span>
+                        </div>
+
+                        <!-- Embedding Size -->
+                        <div class="param-control">
+                            <div class="param-label-row">
+                                <label for="param-embed-dim">Embedding Dimension</label>
+                                <span id="val-embed-dim" class="param-value">32</span>
+                            </div>
+                            <input type="range" id="param-embed-dim" min="8" max="128" value="32" step="8">
+                            <span class="param-desc">Size of word meaning vectors</span>
+                        </div>
+
+                        <!-- LSTM Units -->
+                        <div class="param-control">
+                            <div class="param-label-row">
+                                <label for="param-lstm-units">LSTM Memory Units</label>
+                                <span id="val-lstm-units" class="param-value">64</span>
+                            </div>
+                            <input type="range" id="param-lstm-units" min="16" max="256" value="64" step="16">
+                            <span class="param-desc">Capacity of neural sequential memory</span>
+                        </div>
+
+                        <!-- Training Epochs -->
+                        <div class="param-control">
+                            <div class="param-label-row">
+                                <label for="param-epochs">Training Epochs</label>
+                                <span id="val-epochs" class="param-value">40</span>
+                            </div>
+                            <input type="range" id="param-epochs" min="5" max="200" value="40" step="5">
+                            <span class="param-desc">Number of passes through training data</span>
+                        </div>
+
+                        <!-- Learning Rate -->
+                        <div class="param-control">
+                            <div class="param-label-row">
+                                <label for="param-lr">Learning Rate (α)</label>
+                                <span id="val-lr" class="param-value">0.01</span>
+                            </div>
+                            <input type="range" id="param-lr" min="0.001" max="0.05" value="0.01" step="0.001">
+                            <span class="param-desc">Speed of weight adjustments</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer-actions">
+                    <button id="train-btn" class="btn btn-primary btn-block">
+                        <i class="fa-solid fa-play"></i> Train LSTM Model
+                    </button>
+                    <button id="stop-train-btn" class="btn btn-danger btn-block hidden">
+                        <i class="fa-solid fa-stop"></i> Stop Training
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Logs, Charts and Training Status -->
+            <div class="right-grid">
+                
+                <!-- Training Progress & Logs -->
+                <div class="card panel-progress">
+                    <div class="card-header">
+                        <i class="fa-solid fa-chart-line header-icon"></i>
+                        <h2>Training Progress</h2>
+                        <span id="train-status" class="badge">Idle</span>
+                    </div>
+                    
+                    <div class="training-metrics-row">
+                        <div class="metric-box">
+                            <span class="metric-label">Vocabulary Size</span>
+                            <span id="metric-vocab" class="metric-val">-</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Training Sequences</span>
+                            <span id="metric-sequences" class="metric-val">-</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Current Epoch</span>
+                            <span id="metric-epoch" class="metric-val">-</span>
+                        </div>
+                        <div class="metric-box animate-pulse">
+                            <span class="metric-label">Loss Value</span>
+                            <span id="metric-loss" class="metric-val">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar-label">
+                            <span>Overall Progress</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Layout: Chart and Terminal Console Side-by-Side or Stacked -->
+                    <div class="progress-charts-layout">
+                        <!-- Chart container -->
+                        <div class="chart-container">
+                            <canvas id="lossChart"></canvas>
+                        </div>
+                        <!-- Terminal Log -->
+                        <div class="terminal-log">
+                            <div class="terminal-header">
+                                <div class="terminal-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                                <span class="terminal-title">training_console.log</span>
+                            </div>
+                            <div id="console-output" class="terminal-body">
+                                <div class="log-line system">[System] Ready to load dataset and begin training.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prediction & Sandbox Playground -->
+                <div class="card panel-inference disabled" id="playground-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-paper-plane header-icon"></i>
+                        <h2>Prediction Playground</h2>
+                        <span class="badge badge-success hidden" id="model-ready-badge">Model Ready</span>
+                    </div>
+
+                    <div class="inference-layout">
+                        <!-- Sandbox left: Prediction form -->
+                        <div class="inference-inputs">
+                            <div class="form-group">
+                                <label for="seed-input">Seed Word(s) / Starting Phrase:</label>
+                                <div class="input-action-row">
+                                    <input type="text" id="seed-input" placeholder="Type here (e.g. 'deep learning is')" disabled>
+                                    <button id="predict-btn" class="btn btn-accent" disabled>
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Predict
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="param-control">
+                                <div class="param-label-row">
+                                    <label for="generate-words-count">Words to Generate Recursively</label>
+                                    <span id="val-generate-words" class="param-value">5</span>
+                                </div>
+                                <input type="range" id="generate-words-count" min="1" max="15" value="5" step="1" disabled>
+                            </div>
+                            <!-- Live text generation container -->
+                            <div class="prediction-output-container">
+                                <h4>Generated Sentence:</h4>
+                                <div id="generated-text-box" class="generated-text-box">
+                                    <span class="placeholder">Training the model will unlock this playground...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sandbox right: Probability / softmax distribution chart -->
+                        <div class="inference-distribution">
+                            <h4>Model Confidence (Softmax Layer Outputs)</h4>
+                            <p class="section-desc">Top 3 candidate words for the next position:</p>
+                            <div id="distribution-bars" class="distribution-bars">
+                                <!-- Bars will be dynamically generated by JS -->
+                                <div class="bar-placeholder">
+                                    <i class="fa-solid fa-chart-simple"></i>
+                                    <span>Softmax distribution loads here during prediction</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script loading -->
+    <script src="app.js"></script>
+</body>
+</html>
